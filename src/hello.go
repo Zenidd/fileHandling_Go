@@ -3,16 +3,33 @@ package main
 import (
 	"fmt"
 	"io/ioutil" // IO Handling library
-	"log"
 	"strings"
 	"time"
 	"os"
 	"strconv"
 	"github.com/gookit/color" //output color library
+	"bufio"
 )
 
- func showFiles(fi []os.FileInfo, limit float64) {
+	func check(e error) {
+		if e != nil {
+			panic(e)
+		}
+	}
+
+ func showFiles(fi []os.FileInfo, limit float64, log string) {
+
 	dt := time.Now()
+
+	file, err := os.OpenFile("./log.txt", os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Println("File does not exists or cannot be created")
+		os.Exit(1)
+	}
+	defer file.Close()
+	w := bufio.NewWriter(file)
+	fmt.Fprintf(w, "Log file from fileHandler.\n")
+
 
 	/*Iterating over files*/
 	for _, f := range fi {
@@ -23,8 +40,6 @@ import (
 			file_name = file_name[:30]
 		}
 
-
-
 		/*Checking hours since last modification*/
 		diff := dt.Sub(f.ModTime())
 		check := " "
@@ -32,17 +47,22 @@ import (
 		if n > limit {
 			check = "X"
 		}
-
-
+		/*Printing each file properties*/
 		color.Cyan.Printf("|%-30v|%12v|%25v|%20v|%10v|\n", file_name, f.Size(), f.ModTime().Format("15:04:05 2006.01.02 "), diff, check)
+		/*Printing to log file */
+		fmt.Fprintf(w,"|%-30v|%12v|%25v|%20v|%10v|\n", file_name, f.Size(), f.ModTime().Format("15:04:05 2006.01.02 "), diff, check)
+
 	}
+		w.Flush()
  }
 
 
 func main() {
 
+
 	dirToRead:="./"
 	hours2Old := ""
+	log := ""
 
 	/*Getting args*/
 	if len(os.Args) > 1 {
@@ -50,6 +70,8 @@ func main() {
 		/* Without a dir target input, current directory is target*/
 		if len(os.Args) == 3 {
 			dirToRead = os.Args[2]
+		} else if len(os.Args) == 3 {
+			log = os.Args[0]
 		}
 
 	} else {
@@ -57,18 +79,11 @@ func main() {
 		os.Exit(3)
 	}
 
-
 	files, err := ioutil.ReadDir(dirToRead)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	user_limit, err := strconv.ParseFloat(hours2Old, 64)
-
-	if err == nil {
-        fmt.Println(user_limit)
-    }
+	check(err)
 
 	/* Output format and styles */
 	dt := time.Now()
@@ -82,7 +97,7 @@ func main() {
 	d.Println(header)
 
 	/* Showing and looking for files */
-	showFiles(files, user_limit)
+	showFiles(files, user_limit, log)
 
 	d.Println(header)
 }
